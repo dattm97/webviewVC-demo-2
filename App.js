@@ -17,106 +17,31 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
-  // PermissionsAndroid,
   View,
-  TextInput,
 } from 'react-native';
 import {WebView} from 'react-native-webview';
-// import {
-//   check,
-//   checkMultiple,
-//   PERMISSIONS,
-//   request,
-//   requestMultiple,
-//   RESULTS,
-// } from 'react-native-permissions';
+import {registerGlobals} from 'react-native-webrtc';
+const bypass = () => {
+  registerGlobals();
+  window.RTCPeerConnection.prototype.addTrack = () => {};
+  window.RTCPeerConnection.prototype.getSenders = () => {};
+  window.location = {protocol: 'https:'};
+};
 
 const App: () => Node = () => {
+  bypass();
   const isDarkMode = useColorScheme() === 'dark';
   const [url, setUrl] = useState('');
-  const [eclinic, setEclinic] = useState('');
-  const [error, setError] = useState('');
+  // const [eclinic, setEclinic] = useState('');
+  // const [error, setError] = useState('');
   // const listEClinic = ['minhdat', 'nguyentt', 'trainghiem'];
 
   const refWebview = useRef(null);
 
-  // var enteronce = false;
-
-  // const handle = webView => {
-  //   if (enteronce === false && webView.url.includes('/video-room')) {
-  //     enteronce = true;
-  //     // enteronce is to enter inside the code and ask permissions only once or else the page will continue to ask permission
-
-  //     requestCameraAndGalleryPermission();
-  //   } else {
-  //     enteronce = false;
-  //   }
+  // const onChangeText = value => {
+  //   setError('');
+  //   setEclinic(value);
   // };
-
-  // const requestCameraAndGalleryPermission = async () => {
-  //   // try {
-  //   //   var permission =
-  //   //     Platform.OS === 'ios'
-  //   //       ? await check(PERMISSIONS.IOS.CAMERA, PERMISSIONS.IOS.MICROPHONE)
-  //   //       : await PermissionsAndroid.check(
-  //   //           PermissionsAndroid.PERMISSIONS.CAMERA,
-  //   //         );
-
-  //   //   console.log('======permission', permission);
-  //   //   if (!permission) {
-  //   //     const granted =
-  //   //       Platform.OS === 'ios'
-  //   //         ? await request(PERMISSIONS.IOS.CAMERA, PERMISSIONS.IOS.MICROPHONE)
-  //   //         : await PermissionsAndroid.request(
-  //   //             PermissionsAndroid.PERMISSIONS.CAMERA,
-  //   //             {
-  //   //               title: 'Cool Photo App Camera Permission',
-  //   //               message:
-  //   //                 'Cool Photo App needs access to your camera ' +
-  //   //                 'so you can take awesome pictures.',
-  //   //               buttonNeutral: 'Ask Me Later',
-  //   //               buttonNegative: 'Cancel',
-  //   //               buttonPositive: 'OK',
-  //   //             },
-  //   //           );
-  //   //     if (
-  //   //       granted === (RESULTS.GRANTED || PermissionsAndroid.RESULTS.GRANTED)
-  //   //     ) {
-  //   //       console.log('Camera && Microphone permissions granted');
-  //   //     } else {
-  //   //       console.log('Camera && Microphone permission denied');
-  //   //     }
-  //   //   }
-  //   // } catch (err) {
-  //   //   console.warn(err);
-  //   // }
-  //   try {
-  //     const granted = await PermissionsAndroid.request(
-  //       PermissionsAndroid.PERMISSIONS.CAMERA,
-  //       {
-  //         title: 'Cool Photo App Camera Permission',
-  //         message:
-  //           'Cool Photo App needs access to your camera ' +
-  //           'so you can take awesome pictures.',
-  //         buttonNeutral: 'Ask Me Later',
-  //         buttonNegative: 'Cancel',
-  //         buttonPositive: 'OK',
-  //       },
-  //     );
-  //     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-  //       console.log('You can use the camera');
-  //     } else {
-  //       console.log('Camera permission denied');
-  //     }
-  //   } catch (err) {
-  //     console.warn(err);
-  //   }
-  // };
-
-  const onChangeText = value => {
-    setError('');
-    setEclinic(value);
-  };
 
   return (
     <SafeAreaView style={{flex: 1, alignItems: 'center', marginTop: 16}}>
@@ -180,11 +105,23 @@ const App: () => Node = () => {
                 width: Dimensions.get('window').width,
                 height: Dimensions.get('window').height,
               }}
-              allowsInlineMediaPlayback={true}
-              originWhitelist={['*']}
-              javaScriptEnabled={true}
+              domStorageEnabled
+              javaScriptEnabled
+              sharedCookiesEnabled
               mediaPlaybackRequiresUserAction={false}
-              mediaCapturePermissionGrantType={'grantIfSameHostElsePrompt'}
+              allowsInlineMediaPlayback
+              originWhitelist={['*']}
+              onError={syntheticEvent => {
+                const {nativeEvent} = syntheticEvent;
+                console.log('WebView error: ', nativeEvent);
+              }}
+              onHttpError={syntheticEvent => {
+                const {nativeEvent} = syntheticEvent;
+                console.log(
+                  'WebView received error status code: ',
+                  nativeEvent.statusCode,
+                );
+              }}
             />
           </View>
         </View>
@@ -195,23 +132,6 @@ const App: () => Node = () => {
             flexDirection: 'column',
             alignItems: 'center',
           }}>
-          <TextInput
-            style={{
-              width: '80%',
-              height: 40,
-              margin: 12,
-              borderWidth: 1,
-              borderRadius: 16,
-              padding: 10,
-            }}
-            placeholder="Nhập slug phòng khám"
-            onChangeText={onChangeText}
-            value={eclinic}
-            autoCapitalize="none"
-          />
-          {error ? (
-            <Text style={{marginBottom: 12, color: 'red'}}>{error}</Text>
-          ) : null}
           <TouchableOpacity
             style={{
               padding: 8,
@@ -222,14 +142,9 @@ const App: () => Node = () => {
               justifyContent: 'center',
             }}
             onPress={() => {
-              console.log('eclinic', eclinic);
-              if (!eclinic) {
-                setError('Vui lòng nhập slug!');
-              } else {
-                setUrl(`https://e-doctor.dev/pk/${eclinic}`);
-              }
+              setUrl('https://0ec3-115-75-37-29.ap.ngrok.io/pk/dai-ichi-life');
             }}>
-            <Text style={{color: 'white'}}>Đến phòng khám</Text>
+            <Text style={{color: 'white'}}>Mở</Text>
           </TouchableOpacity>
         </View>
       )}
